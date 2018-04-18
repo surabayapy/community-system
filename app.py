@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, abort, make_response, request
+from flask import Flask, jsonify, render_template, make_response, request
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 
@@ -8,13 +8,13 @@ host = 'localhost'
 port = 3306
 dbname = 'surabayapy'
 
-db_uri = 'mysql+mysqldb://%s:%s@%s:%d/%s' % (user, password, host, port, dbname)
+# db_uri = 'mysql+mysqldb://%s:%s@%s:%d/%s' % (user, password, host, port, dbname)
+db_uri = 'mysql+mysqldb://surabayapy:pythonsby@surabayapy.mysql.pythonanywhere-services.com/surabayapy$default'
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = db_uri
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = True
 db = SQLAlchemy(app)
-
 
 def savedb(data):
     db.session.add(data)
@@ -29,8 +29,8 @@ daftar_hadir = db.Table('daftar_hadir',
 )
 
 class Anggota(db.Model):
-    __table_args__ = {'extend_existing': True}  
-    
+    __table_args__ = {'extend_existing': True}
+
     id = db.Column(db.Integer, primary_key=True)
     nama = db.Column(db.String(80), nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
@@ -45,8 +45,8 @@ class Anggota(db.Model):
         return '<Anggota %r>' % self.telegram
 
 class Kegiatan(db.Model):
-    __table_args__ = {'extend_existing': True} 
-    
+    __table_args__ = {'extend_existing': True}
+
     id = db.Column(db.Integer, primary_key=True)
     tema =  db.Column(db.Text, nullable=False)
     pembicara = db.Column(db.Text,  nullable=False)
@@ -64,7 +64,7 @@ class Lowongan(db.Model):
     pengirim = db.Column(db.String(80), nullable=False)
     judul = db.Column(db.String(80),  nullable=False)
     pesan = db.Column(db.Text, nullable=False)
-    
+
     def __repr__(self):
         return '<Lowongan %r>' % self.judul
 
@@ -72,7 +72,7 @@ def registrasi_anggota(nama, email, telegram, github='', cari_kerja=False):
     try:
         anggota_baru = Anggota(nama=nama, email=email, telegram=telegram, github=github, cari_kerja=cari_kerja)
         savedb(anggota_baru)
-        
+
         data= {
             'id' : anggota_baru.id,
             'nama' : anggota_baru.nama,
@@ -82,12 +82,12 @@ def registrasi_anggota(nama, email, telegram, github='', cari_kerja=False):
             'cari_kerja' : anggota_baru.cari_kerja
         }
         return {'status': 'success', 'data': data}, 201
-    
+
     except:
         db.session.rollback()
         return {'status': 'failed', 'data': 'Username, email, telegram atau github sudah digunakan'}, 200
 
-    
+
 def buat_kegiatan(tema, pembicara, tempat, maps, waktuacara, pendaftaran):
     try:
         kegiatan_baru = Kegiatan(tema = tema, pembicara = pembicara, tempat = tempat, maps = maps, waktu = waktu(waktuacara), pendaftaran = waktu(pendaftaran))
@@ -101,7 +101,7 @@ def buat_kegiatan(tema, pembicara, tempat, maps, waktuacara, pendaftaran):
             'waktu' : kegiatan_baru.waktu,
             'pendaftaran' : kegiatan_baru.pendaftaran
         }
-        
+
         return {'status': 'success', 'data': data}, 201
     except:
         db.session.rollback()
@@ -149,16 +149,20 @@ def list_kegiatan(mode, idkegiatan=0):
                 }
                 daftar_kegiatan.append(data)
             return {'status': 'success', 'data': daftar_kegiatan}, 200
-        
+
         elif mode == 'peserta':
             kegiatan = Kegiatan.query.filter_by(id=idkegiatan).first()
             daftar_peserta = []
             for peserta in kegiatan.peserta:
                 daftar_peserta.append(peserta.telegram)
             return {'status': 'success', 'data': daftar_peserta}, 200
-        
+
     except:
         return {'status': 'failed', 'data': 'Not found'}, 200
+
+@app.route('/')
+def root():
+    return render_template('index.html')
 
 @app.route('/api/daftar-anggota/', methods=['POST'])
 def api_daftar_anggota():
@@ -170,7 +174,7 @@ def api_daftar_anggota():
             content = request.json
             response = registrasi_anggota(content["nama"], content["email"], content["telegram"], content["github"])
     return jsonify(response[0]), response[1]
-    
+
 
 @app.route('/api/buat-kegiatan/', methods=['POST'])
 def api_buat_kegiatan():
@@ -182,7 +186,7 @@ def api_buat_kegiatan():
             content = request.json
             response = buat_kegiatan(content["tema"], content["pembicara"], content["tempat"], content["maps"], content["waktu"], content["pendaftaran"])
     return jsonify(response[0]), response[1]
-    
+
 
 @app.route('/api/mendaftar-kegiatan/', methods=['POST'])
 def api_mendaftar_kegiatan():
@@ -194,37 +198,38 @@ def api_mendaftar_kegiatan():
             content = request.json
             response = mendaftar_kegiatan(content["anggota_telegram"], content["idkegiatan"])
     return jsonify(response[0]), response[1]
-     
+
 
 @app.route('/api/daftar-kegiatan/', methods=['GET'])
 def api_kegiatan():
     if request.method == 'GET':
         response = list_kegiatan('tema')
     return jsonify(response[0]), response[1]
-     
+
 
 @app.route('/api/peserta-kegiatan/<int:idkegiatan>/', methods=['GET'])
 def api_peserta_kegiatan(idkegiatan):
     if request.method == 'GET':
         response = list_kegiatan('peserta', idkegiatan)
     return jsonify(response[0]), response[1]
-     
+
 
 @app.route('/api/kegiatan/<idtelegram>/', methods=['GET'])
 def api_kegiatan_idtelegram(idtelegram):
     if request.method == 'GET':
         response = kegiatan_peserta(idtelegram)
     return jsonify(response[0]), response[1]
-     
+
 
 @app.errorhandler(404)
 def not_found(error):
     return make_response(jsonify({'error': 'Not  Found'}), 404)
 
 @app.errorhandler(400)
-def not_found(error):
+def bad_requsest(error):
     return make_response(jsonify({'error': 'Bad Requesst'}), 400)
 
 if __name__ == '__main__':
-    app.run(host= '0.0.0.0',debug=False)
+    app.run(port=5001)
     db.create_all()
+    print('ready')
