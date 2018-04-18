@@ -67,9 +67,6 @@ class Lowongan(db.Model):
     
     def __repr__(self):
         return '<Lowongan %r>' % self.judul
-    
-db.create_all()
-
 
 def registrasi_anggota(nama, email, telegram, github='', cari_kerja=False):
     try:
@@ -88,7 +85,7 @@ def registrasi_anggota(nama, email, telegram, github='', cari_kerja=False):
     
     except:
         db.session.rollback()
-        return {'status': 'failed', 'data': 'Username, email, telegram atau github sudah digunakan'}, 400
+        return {'status': 'failed', 'data': 'Username, email, telegram atau github sudah digunakan'}, 200
 
     
 def buat_kegiatan(tema, pembicara, tempat, maps, waktuacara, pendaftaran):
@@ -108,7 +105,7 @@ def buat_kegiatan(tema, pembicara, tempat, maps, waktuacara, pendaftaran):
         return {'status': 'success', 'data': data}, 201
     except:
         db.session.rollback()
-        return {'status': 'failed', 'data': 'Kegiatan tidak dapat didaftarkan'}, 400
+        return {'status': 'failed', 'data': 'Kegiatan tidak dapat didaftarkan'}, 200
 
 
 def kegiatan_peserta(anggota_telegram):
@@ -127,7 +124,7 @@ def kegiatan_peserta(anggota_telegram):
             info_anggota.append(data)
         return {'status': 'success', 'data': info_anggota}, 200
     except:
-        return {'status': 'failed', 'data': 'Not found'}, 404
+        return {'status': 'failed', 'data': 'Not found'}, 200
 
 def mendaftar_kegiatan(anggota_telegram, idkegiatan):
     try:
@@ -138,7 +135,7 @@ def mendaftar_kegiatan(anggota_telegram, idkegiatan):
         response = kegiatan_peserta(anggota_telegram)
         return response[0], 201
     except:
-        return {'status': 'failed', 'data': 'Not found'}, 404
+        return {'status': 'failed', 'data': 'Not found'}, 200
 
 
 def list_kegiatan(mode, idkegiatan=0):
@@ -161,7 +158,7 @@ def list_kegiatan(mode, idkegiatan=0):
             return {'status': 'success', 'data': daftar_peserta}, 200
         
     except:
-        return {'status': 'failed', 'data': 'Not found'}, 404
+        return {'status': 'failed', 'data': 'Not found'}, 200
 
 @app.route('/api/daftar-anggota/', methods=['POST'])
 def api_daftar_anggota():
@@ -226,8 +223,8 @@ def not_found(error):
 
 @app.errorhandler(400)
 def not_found(error):
-    return make_response(jsonify({'error': 'Bad Requesst'}), 404)
+    return make_response(jsonify({'error': 'Bad Requesst'}), 400)
 
 if __name__ == '__main__':
     app.run(host= '0.0.0.0',debug=False)
-
+    db.create_all()
